@@ -1,0 +1,20 @@
+# Compiled Go binaries
+/mnemocast
+*.exe
+*.test
+*.out
+
+# Environment variable and secrets (CRITICAL)
+.env
+*.local
+
+# Database data (in case I map Docker Postres volumes locally later) 
+/data/
+/pgdata/
+
+# Editor and OS specific files
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
