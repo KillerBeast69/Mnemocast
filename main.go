@@ -29,8 +29,8 @@ type Link struct {
 }
 
 func main() {
-	// Gordan Ramsay's YouTube channel ID
-	channelID := "UCIEv3lZ_tNXHzL3ox-_uUGQ"
+	// Fireship's YouTube channel ID
+	channelID := "UCsBjURrPoezykLs9EqgamOA"
 	url := "https://www.youtube.com/feeds/videos.xml?channel_id=" + channelID
 
 	fmt.Printf("Fetching the latest video for channel %s...\n", channelID)
