@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/KillerBeast69/Mnemocast/ingest"
 )
 
 // defining structs to tell Go exactly how to map the XML data into variables
@@ -62,6 +64,20 @@ func main() {
 		fmt.Printf("Channel: %s\n", feed.Title)
 		fmt.Printf("Latest Video Title: %s\n", latestVideo.Title)
 		fmt.Printf("Video ID: %s\n", latestVideo.VideoID)
+
+		// fetch the transcript for the latest video
+		fmt.Println("\nattempting to fetch transcript...")
+		transcript, err := ingest.FetchTranscript(latestVideo.VideoID)
+		if err != nil {
+			fmt.Printf("Error fetching transcript: %v\n", err)
+		} else {
+			previewLimit := 200
+			if len(transcript) < 200 {
+				previewLimit = len(transcript)
+			}
+			fmt.Printf("Transcript Preview: %s\n", transcript[:previewLimit])
+			fmt.Printf("total transcript length: %d characters\n", len(transcript))
+		}
 		fmt.Printf("Link: %s\n", latestVideo.Link.Href)
 	} else {
 		fmt.Println("No videos found :/.")
