@@ -4,6 +4,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"net/http"
 	"time"
 )
 
@@ -33,7 +34,7 @@ func main() {
 	fmt.Printf("Fetching the latest video for channel %s...\n", channelID)
 
 	// make the HTTP GET request
-	client := &http.client{Timeout: 10 * time.Second}
+	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
 		panic(err) //  if there is no internat or the URL is invalid, crash and print the error
