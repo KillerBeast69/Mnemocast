@@ -39,7 +39,7 @@ func FetchTranscript(videoID string) (string, error) {
 	fmt.Printf(" [Debug] selected track: %s\n", targetTrack.LanguageCode)
 
 	// try to fetch the specific track we found
-	transcript, err := client.GetTranscript(video, "en")
+	transcript, err := client.GetTranscript(video, targetTrack.LanguageCode)
 	if err != nil {
 		return "", fmt.Errorf("failed to fetch english transcript: %v", err)
 	}
