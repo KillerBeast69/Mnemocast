@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/xml"
 	"fmt"
 	"io"
@@ -9,6 +10,8 @@ import (
 	"time"
 
 	"github.com/KillerBeast69/Mnemocast/ingest"
+	"github.com/KillerBeast69/Mnemocast/store"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Feed struct {
@@ -28,15 +31,34 @@ type Link struct {
 }
 
 func main() {
+	// ---------------------------------------------------------
+	// 1. CONNECT TO POSTGRES
+	// ---------------------------------------------------------
+	ctx := context.Background()
+	connStr := "postgres://mnemocast_admin:mnemocast_password@localhost:5433/mnemocast_db?sslmode=disable"
+
+	fmt.Println("Connecting to the database...")
+	pool, err := pgxpool.New(ctx, connStr)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v", err)
+	}
+	defer pool.Close()
+
+	// Initialize our generated sqlc queries struct using the connection pool
+	queries := store.New(pool)
+	fmt.Println("Connected successfully!")
+
+	// ---------------------------------------------------------
+	// 2. FETCH RSS FEED
+	// ---------------------------------------------------------
 	channelID := "UCsBjURrPoezykLs9EqgamOA" // Fireship
 	url := "https://www.youtube.com/feeds/videos.xml?channel_id=" + channelID
 
-	fmt.Printf("Fetching the latest video for channel %s...\n", channelID)
+	fmt.Printf("\nFetching the latest video for channel %s...\n", channelID)
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
-		// Replace panic with log.Fatalf or log.Printf
 		log.Fatalf("Failed to fetch RSS feed: %v", err)
 	}
 	defer resp.Body.Close()
@@ -51,29 +73,51 @@ func main() {
 		log.Fatalf("Failed to parse XML: %v", err)
 	}
 
-	fmt.Printf("Feed Title: %s\n", feed.Title)
+	// ---------------------------------------------------------
+	// 3. PROCESS THE FEED & SAVE TO DB
+	// ---------------------------------------------------------
 	if len(feed.Entries) > 0 {
 		latestVideo := feed.Entries[0]
-		fmt.Println("--------------------------------------------------")
-		fmt.Printf("Channel: %s\n", feed.Title)
-		fmt.Printf("Latest Video Title: %s\n", latestVideo.Title)
-		fmt.Printf("Video ID: %s\n", latestVideo.VideoID)
-		fmt.Printf("Link: %s\n", latestVideo.Link.Href)
 
+		// A. Save the Channel first (Foreign Key requirement)
+		err = queries.CreateChannel(ctx, store.CreateChannelParams{
+			ChannelID: channelID,
+			Title:     feed.Title,
+		})
+		if err != nil {
+			log.Printf("Failed to save channel to DB: %v", err)
+		} else {
+			fmt.Printf("✓ Channel '%s' saved/verified in DB.\n", feed.Title)
+		}
+
+		// B. Save the Video
+		err = queries.CreateVideo(ctx, store.CreateVideoParams{
+			VideoID:   latestVideo.VideoID,
+			ChannelID: channelID,
+			Title:     latestVideo.Title,
+			Url:       latestVideo.Link.Href,
+		})
+		if err != nil {
+			log.Printf("Failed to save video to DB: %v", err)
+		} else {
+			fmt.Printf("✓ Video '%s' saved/verified in DB.\n", latestVideo.Title)
+		}
+
+		// ---------------------------------------------------------
+		// 4. FETCH THE TRANSCRIPT
+		// ---------------------------------------------------------
 		fmt.Println("\nAttempting to fetch transcript...")
 		transcript, err := ingest.FetchTranscript(latestVideo.VideoID)
 		if err != nil {
-			// Log the error instead of crashing, so the poller can continue to the next video
 			log.Printf("Error fetching transcript: %v\n", err)
 		} else {
-			// FIX: Safe substring slicing using runes (Claude's catch!)
 			runes := []rune(transcript)
 			previewLimit := 200
 			if len(runes) < 200 {
 				previewLimit = len(runes)
 			}
-			fmt.Printf("Transcript Preview: %s...\n", string(runes[:previewLimit]))
-			fmt.Printf("Total transcript length: %d characters\n", len(transcript))
+			fmt.Printf("\n--- Transcript Preview ---\n%s...\n", string(runes[:previewLimit]))
+			fmt.Printf("\nTotal transcript length: %d characters\n", len(transcript))
 		}
 	} else {
 		fmt.Println("No videos found.")
