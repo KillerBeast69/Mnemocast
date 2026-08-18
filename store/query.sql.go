@@ -25,6 +25,22 @@ func (q *Queries) CreateChannel(ctx context.Context, arg CreateChannelParams) er
 	return err
 }
 
+const createSummary = `-- name: CreateSummary :exec
+INSERT INTO summaries (video_id, summary_text)
+VALUES ($1, $2)
+ON CONFLICT (video_id) DO NOTHING
+`
+
+type CreateSummaryParams struct {
+	VideoID     string
+	SummaryText string
+}
+
+func (q *Queries) CreateSummary(ctx context.Context, arg CreateSummaryParams) error {
+	_, err := q.db.Exec(ctx, createSummary, arg.VideoID, arg.SummaryText)
+	return err
+}
+
 const createVideo = `-- name: CreateVideo :exec
 INSERT INTO videos (video_id, channel_id, title, url)
 VALUES ($1, $2, $3, $4)

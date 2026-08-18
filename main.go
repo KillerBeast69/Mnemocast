@@ -4,13 +4,12 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"time"
 
 	"github.com/KillerBeast69/Mnemocast/ingest"
 )
-
-// defining structs to tell Go exactly how to map the XML data into variables
 
 type Feed struct {
 	XMLName xml.Name `xml:"feed"`
@@ -20,43 +19,38 @@ type Feed struct {
 
 type Entry struct {
 	Title   string `xml:"title"`
-	VideoID string `xml:"videoId"` // youtube's custom tag for video ID
+	VideoID string `xml:"videoId"`
 	Link    Link   `xml:"link"`
 }
 
 type Link struct {
-	Href string `xml:"href,attr"` // the "attr" option tells Go to grab the attribute inside the tag, not the text between it
+	Href string `xml:"href,attr"`
 }
 
 func main() {
-	// Fireship's YouTube channel ID
-	channelID := "UCsBjURrPoezykLs9EqgamOA"
+	channelID := "UCsBjURrPoezykLs9EqgamOA" // Fireship
 	url := "https://www.youtube.com/feeds/videos.xml?channel_id=" + channelID
 
 	fmt.Printf("Fetching the latest video for channel %s...\n", channelID)
 
-	// make the HTTP GET request
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Get(url)
 	if err != nil {
-		panic(err) //  if there is no internat or the URL is invalid, crash and print the error
+		// Replace panic with log.Fatalf or log.Printf
+		log.Fatalf("Failed to fetch RSS feed: %v", err)
 	}
+	defer resp.Body.Close()
 
-	defer resp.Body.Close() // Ensure we close the connection when the function exits
-
-	// read the raw XML data from the response body
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err) // if we can't read the response body, crash and print the error
+		log.Fatalf("Failed to read response body: %v", err)
 	}
 
-	// unmarshal(parse) the raw XML data into our Go structs
 	var feed Feed
 	if err := xml.Unmarshal(body, &feed); err != nil {
-		panic(err) // if we can't parse the XML, crash and print the error
+		log.Fatalf("Failed to parse XML: %v", err)
 	}
 
-	// print the results
 	fmt.Printf("Feed Title: %s\n", feed.Title)
 	if len(feed.Entries) > 0 {
 		latestVideo := feed.Entries[0]
@@ -64,22 +58,24 @@ func main() {
 		fmt.Printf("Channel: %s\n", feed.Title)
 		fmt.Printf("Latest Video Title: %s\n", latestVideo.Title)
 		fmt.Printf("Video ID: %s\n", latestVideo.VideoID)
+		fmt.Printf("Link: %s\n", latestVideo.Link.Href)
 
-		// fetch the transcript for the latest video
-		fmt.Println("\nattempting to fetch transcript...")
+		fmt.Println("\nAttempting to fetch transcript...")
 		transcript, err := ingest.FetchTranscript(latestVideo.VideoID)
 		if err != nil {
-			fmt.Printf("Error fetching transcript: %v\n", err)
+			// Log the error instead of crashing, so the poller can continue to the next video
+			log.Printf("Error fetching transcript: %v\n", err)
 		} else {
+			// FIX: Safe substring slicing using runes (Claude's catch!)
+			runes := []rune(transcript)
 			previewLimit := 200
-			if len(transcript) < 200 {
-				previewLimit = len(transcript)
+			if len(runes) < 200 {
+				previewLimit = len(runes)
 			}
-			fmt.Printf("Transcript Preview: %s\n", transcript[:previewLimit])
-			fmt.Printf("total transcript length: %d characters\n", len(transcript))
+			fmt.Printf("Transcript Preview: %s...\n", string(runes[:previewLimit]))
+			fmt.Printf("Total transcript length: %d characters\n", len(transcript))
 		}
-		fmt.Printf("Link: %s\n", latestVideo.Link.Href)
 	} else {
-		fmt.Println("No videos found :/.")
+		fmt.Println("No videos found.")
 	}
 }

@@ -14,6 +14,13 @@ type Channel struct {
 	AddedAt   pgtype.Timestamptz
 }
 
+type Summary struct {
+	VideoID     string
+	SummaryText string
+	CreatedAt   pgtype.Timestamptz
+	IsDigested  bool
+}
+
 type Video struct {
 	VideoID      string
 	ChannelID    string

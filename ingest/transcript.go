@@ -24,7 +24,7 @@ func FetchTranscript(videoID string) (string, error) {
 	var targetTrack *youtube.CaptionTrack
 	fmt.Println(" [Debug] available caption tracks:")
 	for i, track := range video.CaptionTracks {
-		fmt.Printf(" -> %s, (Code: %s)\n", track.Name, track.LanguageCode)
+		fmt.Printf(" -> Track found (Code: %s)\n", track.LanguageCode)
 
 		// grab the first track that starts with "en" (english)
 		if targetTrack == nil && strings.HasPrefix(track.LanguageCode, "en") {
