@@ -2,7 +2,7 @@ version: "2"
 sql:
   - engine: "postgresql"
     queries: "store/query.sql"
-    schema: "store/schema.sql"
+    schema: "store/migrations" # <-- Point this at the folder!
     gen:
       go:
         package: "store"
